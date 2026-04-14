@@ -1,0 +1,4 @@
+name,vendor,purpose,sector,is_in_eu_market,affected_persons
+HR Screening Tool,Workday,Automated CV screening and candidate ranking,hr,true,Job applicants
+Fraud Detection,Internal,Real-time transaction fraud detection,fintech,true,Customers
+Customer Chatbot,OpenAI,Customer support automation,fintech,true,Customers

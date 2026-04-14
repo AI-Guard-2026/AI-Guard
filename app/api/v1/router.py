@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     organisations,
     ai_systems,
     classifications,
+    documents,
 )
 
 api_router = APIRouter()
@@ -29,4 +30,9 @@ api_router.include_router(
     classifications.router,
     prefix="/organisations/{org_id}/ai-systems",
     tags=["Classifications"],
+)
+api_router.include_router(
+    documents.router,
+    prefix="/organisations/{org_id}/ai-systems",
+    tags=["Documents"],
 )

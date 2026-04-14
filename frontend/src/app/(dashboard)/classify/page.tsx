@@ -3,6 +3,9 @@
 import { useState, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
+import { useUser } from '@/hooks/useUser'
+import { classifySystem } from '@/lib/api'
 
 const questions = [
   { id: 'purpose', text: 'What is the primary purpose of this AI system?', options: ['Credit scoring / loan decisions', 'HR / recruitment / performance', 'Medical diagnosis / treatment', 'Biometric identification', 'Fraud detection', 'Customer service chatbot', 'Other'] },
@@ -12,56 +15,56 @@ const questions = [
   { id: 'scale', text: 'How many people does this system affect per month?', options: ['Under 100', '100–1,000', '1,000–10,000', 'Over 10,000'] },
 ]
 
-interface Result {
-  risk_tier: string
-  annex_iii_article: string | null
-  reasoning: string
-  confidence: number
-  human_review_required: boolean
+const tierConfig: Record<string, { bg: string; color: string; border: string; dot: string }> = {
+  'high_risk':    { bg: '#fff0f0', color: '#c0392b', border: '#ffcdd2', dot: '#ff3b30' },
+  'limited_risk': { bg: '#fff8ec', color: '#b7600a', border: '#ffe0b2', dot: '#ff9500' },
+  'minimal_risk': { bg: '#edfff4', color: '#1a7a3a', border: '#c8f7d8', dot: '#30d158' },
 }
 
-const tierConfig: Record<string, { bg: string; color: string; border: string; dot: string }> = {
-  'High Risk':    { bg: '#fff0f0', color: '#c0392b', border: '#ffcdd2', dot: '#ff3b30' },
-  'Limited Risk': { bg: '#fff8ec', color: '#b7600a', border: '#ffe0b2', dot: '#ff9500' },
-  'Minimal Risk': { bg: '#edfff4', color: '#1a7a3a', border: '#c8f7d8', dot: '#30d158' },
+const tierLabel: Record<string, string> = {
+  'high_risk': 'High Risk',
+  'limited_risk': 'Limited Risk',
+  'minimal_risk': 'Minimal Risk',
 }
 
 function ClassifyContent() {
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [result, setResult] = useState<Result | null>(null)
+  const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
   const systemName = searchParams.get('name') || 'Unknown System'
+  const systemId = searchParams.get('id') || ''
+
+  const { getToken } = useAuth()
+  const { orgId } = useUser()
 
   async function handleAnswer(answer: string) {
     const newAnswers = { ...answers, [questions[step].id]: answer }
     setAnswers(newAnswers)
+
     if (step < questions.length - 1) {
       setStep(step + 1)
     } else {
+      // All questions answered — call backend
       setLoading(true)
       setError('')
       try {
-        const res = await fetch('/api/classify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ systemName, answers: newAnswers }),
-        })
-        const data = await res.json()
-        if (data.error) throw new Error(data.error)
+        const token = await getToken()
+        if (!token || !orgId || !systemId) throw new Error('Missing auth or system ID')
+        const data = await classifySystem(token, orgId, systemId, newAnswers)
         setResult(data)
-      } catch {
-        setError('Classification failed. Please try again.')
+      } catch (err: any) {
+        setError(err.message || 'Classification failed. Please try again.')
       } finally {
         setLoading(false)
       }
     }
   }
 
-  const progress = ((step) / questions.length) * 100
+  const progress = (step / questions.length) * 100
 
   if (loading) {
     return (
@@ -72,7 +75,7 @@ function ClassifyContent() {
           style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #f5f5f7', borderTopColor: '#0071e3' }}
         />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', marginBottom: '6px' }}>Analysing with Claude AI</div>
+          <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', marginBottom: '6px' }}>Analysing your AI System</div>
           <div style={{ fontSize: '13px', color: '#86868b' }}>AIGuard is reviewing EU AI Act 2024/1689 Annex III...</div>
         </div>
       </div>
@@ -80,27 +83,28 @@ function ClassifyContent() {
   }
 
   if (result) {
-    const tier = tierConfig[result.risk_tier] || tierConfig['Minimal Risk']
+    const tier = result.risk_tier || 'minimal_risk'
+    const config = tierConfig[tier] || tierConfig['minimal_risk']
+
     return (
       <div style={{ padding: '40px 28px', maxWidth: '640px' }}>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-
           <div style={{ fontSize: '13px', color: '#86868b', marginBottom: '8px' }}>Classification Result — {systemName}</div>
           <h2 style={{ fontSize: '26px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.5px', marginBottom: '24px' }}>
             Your system has been classified
           </h2>
 
           {/* Risk Tier Card */}
-          <div style={{ background: tier.bg, border: `1px solid ${tier.border}`, borderRadius: '16px', padding: '24px', marginBottom: '16px' }}>
+          <div style={{ background: config.bg, border: `1px solid ${config.border}`, borderRadius: '16px', padding: '24px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tier.dot }}></div>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: tier.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Risk Tier</span>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: config.dot }}></div>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: config.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Risk Tier</span>
             </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: tier.color, letterSpacing: '-0.5px', marginBottom: '12px' }}>
-              {result.risk_tier}
+            <div style={{ fontSize: '32px', fontWeight: 700, color: config.color, letterSpacing: '-0.5px', marginBottom: '12px' }}>
+              {tierLabel[tier] || tier}
             </div>
             {result.annex_iii_article && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.06)', padding: '5px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, color: tier.color, marginBottom: '12px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.06)', padding: '5px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, color: config.color, marginBottom: '12px' }}>
                 📋 {result.annex_iii_article}
               </div>
             )}
@@ -108,25 +112,27 @@ function ClassifyContent() {
           </div>
 
           {/* Confidence */}
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '12px', color: '#86868b', fontWeight: 500 }}>Confidence Score</span>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: '#1d1d1f' }}>{Math.round(result.confidence * 100)}%</span>
-            </div>
-            <div style={{ height: '6px', background: '#f5f5f7', borderRadius: '3px', overflow: 'hidden' }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${result.confidence * 100}%` }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                style={{ height: '100%', background: '#30d158', borderRadius: '3px' }}
-              />
-            </div>
-            {result.human_review_required && (
-              <div style={{ marginTop: '10px', padding: '8px 12px', background: '#fff8ec', borderRadius: '8px', fontSize: '12px', color: '#b7600a', fontWeight: 500 }}>
-                ⚠️ Human legal review recommended before finalising
+          {result.confidence !== undefined && (
+            <div style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px', color: '#86868b', fontWeight: 500 }}>Confidence Score</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#1d1d1f' }}>{Math.round(result.confidence * 100)}%</span>
               </div>
-            )}
-          </div>
+              <div style={{ height: '6px', background: '#f5f5f7', borderRadius: '3px', overflow: 'hidden' }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${result.confidence * 100}%` }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  style={{ height: '100%', background: '#30d158', borderRadius: '3px' }}
+                />
+              </div>
+              {result.human_review_required && (
+                <div style={{ marginTop: '10px', padding: '8px 12px', background: '#fff8ec', borderRadius: '8px', fontSize: '12px', color: '#b7600a', fontWeight: 500 }}>
+                  ⚠️ Human legal review recommended before finalising
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -136,12 +142,14 @@ function ClassifyContent() {
             >
               Back to Inventory
             </button>
-            <button
-              onClick={() => { setStep(0); setAnswers({}); setResult(null) }}
-              style={{ padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
-            >
-              Reclassify
-            </button>
+            {tier === 'high_risk' && (
+              <button
+                onClick={() => router.push(`/annex-iv?id=${systemId}&name=${encodeURIComponent(systemName)}`)}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
+              >
+                Generate Annex IV →
+              </button>
+            )}
           </div>
         </motion.div>
       </div>
@@ -151,7 +159,6 @@ function ClassifyContent() {
   return (
     <div style={{ padding: '40px 28px', maxWidth: '600px' }}>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-
         <div style={{ fontSize: '13px', color: '#86868b', marginBottom: '6px' }}>Classifying: {systemName}</div>
         <h2 style={{ fontSize: '26px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.5px', marginBottom: '28px' }}>
           Risk Classification
@@ -172,7 +179,6 @@ function ClassifyContent() {
           </div>
         </div>
 
-        {/* Question */}
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -200,7 +206,6 @@ function ClassifyContent() {
                     background: '#fff', fontSize: '14px', color: '#1d1d1f',
                     cursor: 'pointer', fontWeight: 400,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                    transition: 'border-color 0.15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = '#0071e3'; e.currentTarget.style.color = '#0071e3' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'; e.currentTarget.style.color = '#1d1d1f' }}

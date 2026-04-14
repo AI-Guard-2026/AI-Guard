@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Label } from '@/components/ui/label'
+import { motion } from 'framer-motion'
 import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 const questions = [
   { id: 'system_name', label: 'System Name', placeholder: 'e.g. Credit Scoring Model' },
@@ -19,7 +17,7 @@ const questions = [
   { id: 'deployment_date', label: 'Deployment Date', placeholder: 'e.g. January 2024' },
 ]
 
-interface Document {
+interface AnnexDocument {
   general_description: string
   system_elements: string
   development_process: string
@@ -40,7 +38,7 @@ const sections = [
 export default function AnnexIVPage() {
   const [step, setStep] = useState<'form' | 'loading' | 'result'>('form')
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [document, setDocument] = useState<Document | null>(null)
+  const [annexDoc, setAnnexDoc] = useState<AnnexDocument | null>(null)
   const [error, setError] = useState('')
   const documentRef = useRef<HTMLDivElement>(null)
 
@@ -56,7 +54,7 @@ export default function AnnexIVPage() {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      setDocument(data)
+      setAnnexDoc(data)
       setStep('result')
     } catch {
       setError('Failed to generate document. Please try again.')
@@ -65,14 +63,86 @@ export default function AnnexIVPage() {
   }
 
   async function handleExportPDF() {
-    if (!documentRef.current) return
-    const canvas = await html2canvas(documentRef.current)
-    const imgData = canvas.toDataURL('image/png')
+    if (!annexDoc || !answers.system_name) return
+
     const pdf = new jsPDF('p', 'mm', 'a4')
-    const width = pdf.internal.pageSize.getWidth()
-    const height = (canvas.height * width) / canvas.width
-    pdf.addImage(imgData, 'PNG', 0, 0, width, height)
-    pdf.save(`AIGuard-AnnexIV-${answers.system_name || 'document'}.pdf`)
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 20
+    const contentWidth = pageWidth - margin * 2
+    let y = 20
+
+    const addText = (text: string, fontSize: number, fontStyle: 'normal' | 'bold', color: [number, number, number], maxWidth?: number) => {
+      pdf.setFontSize(fontSize)
+      pdf.setFont('helvetica', fontStyle)
+      pdf.setTextColor(...color)
+      const lines = pdf.splitTextToSize(text, maxWidth || contentWidth)
+      lines.forEach((line: string) => {
+        if (y > pageHeight - 20) { pdf.addPage(); y = 20 }
+        pdf.text(line, margin, y)
+        y += fontSize * 0.45
+      })
+    }
+
+    const addSpacer = (height: number) => { y += height }
+
+    // Header
+    pdf.setFillColor(29, 29, 31)
+    pdf.roundedRect(margin, y, contentWidth, 28, 3, 3, 'F')
+    pdf.setFontSize(16)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(255, 255, 255)
+    pdf.text('AIGuard — Annex IV Technical Documentation', margin + 6, y + 11)
+    pdf.setFontSize(9)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(180, 180, 180)
+    pdf.text(`EU AI Act 2024/1689 | Generated ${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}`, margin + 6, y + 21)
+    y += 36
+
+    // System info row
+    pdf.setFillColor(245, 245, 247)
+    pdf.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F')
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(29, 29, 31)
+    pdf.text(`System: ${answers.system_name}`, margin + 6, y + 7)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(134, 134, 139)
+    pdf.text(`Vendor: ${answers.vendor || 'N/A'}  |  Classification: High Risk  |  Deployed: ${answers.deployment_date || 'N/A'}`, margin + 6, y + 13)
+    y += 26
+
+    // Sections
+    const sectionData = [
+      { title: '1. General Description', content: annexDoc.general_description },
+      { title: '2. System Elements', content: annexDoc.system_elements },
+      { title: '3. Development Process', content: annexDoc.development_process },
+      { title: '4. Monitoring & Control', content: annexDoc.monitoring_control },
+      { title: '5. Technical Specifications', content: annexDoc.technical_specifications },
+      { title: '6. Standards Applied', content: annexDoc.standards_applied },
+    ]
+
+    sectionData.forEach((section) => {
+      if (y > pageHeight - 40) { pdf.addPage(); y = 20 }
+      pdf.setFillColor(0, 113, 227)
+      pdf.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F')
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(255, 255, 255)
+      pdf.text(section.title, margin + 5, y + 7)
+      y += 14
+      addText(section.content, 9, 'normal', [58, 58, 60], contentWidth)
+      addSpacer(8)
+    })
+
+    if (y > pageHeight - 25) { pdf.addPage(); y = 20 }
+    pdf.setFillColor(255, 248, 236)
+    pdf.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F')
+    pdf.setFontSize(8)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(183, 96, 10)
+    pdf.text('AI-generated compliance guidance. Legal review recommended before submission.', margin + 4, y + 8)
+
+    pdf.save(`AIGuard-AnnexIV-${answers.system_name.replace(/ /g, '_')}.pdf`)
   }
 
   if (step === 'loading') {
@@ -85,18 +155,16 @@ export default function AnnexIVPage() {
         />
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', marginBottom: '6px' }}>Generating Annex IV Document</div>
-          <div style={{ fontSize: '13px', color: '#86868b' }}>Claude is drafting your compliance documentation...</div>
+          <div style={{ fontSize: '13px', color: '#86868b' }}>AI Guard is drafting your compliance documentation...</div>
         </div>
       </div>
     )
   }
 
-  if (step === 'result' && document) {
+  if (step === 'result' && annexDoc) {
     return (
       <div style={{ padding: '28px' }}>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-
-          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
             <div>
               <div style={{ fontSize: '13px', color: '#86868b', marginBottom: '4px' }}>Annex IV Technical Documentation</div>
@@ -110,7 +178,7 @@ export default function AnnexIVPage() {
                 Download PDF
               </button>
               <button
-                onClick={() => { setStep('form'); setDocument(null) }}
+                onClick={() => { setStep('form'); setAnnexDoc(null) }}
                 style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
               >
                 Generate New
@@ -118,7 +186,6 @@ export default function AnnexIVPage() {
             </div>
           </div>
 
-          {/* Document */}
           <div ref={documentRef} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {sections.map((section, i) => (
               <motion.div
@@ -133,11 +200,10 @@ export default function AnnexIVPage() {
                   <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1d1d1f' }}>{section.title}</h3>
                 </div>
                 <p style={{ fontSize: '13px', color: '#3a3a3c', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                  {document[section.key as keyof Document]}
+                  {annexDoc[section.key as keyof AnnexDocument]}
                 </p>
               </motion.div>
             ))}
-
             <div style={{ background: '#fff8ec', borderRadius: '12px', padding: '14px 18px', border: '0.5px solid #ffe0b2' }}>
               <p style={{ fontSize: '12px', color: '#b7600a', fontWeight: 500 }}>
                 ⚠️ This document is AI-generated compliance guidance. Have your legal team review before submission.

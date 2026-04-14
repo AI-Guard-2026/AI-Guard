@@ -73,7 +73,7 @@ function ClassifyContent() {
         />
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', marginBottom: '6px' }}>Analysing with Claude AI</div>
-          <div style={{ fontSize: '13px', color: '#86868b' }}>Reviewing EU AI Act 2024/1689 Annex III...</div>
+          <div style={{ fontSize: '13px', color: '#86868b' }}>AIGuard is reviewing EU AI Act 2024/1689 Annex III...</div>
         </div>
       </div>
     )

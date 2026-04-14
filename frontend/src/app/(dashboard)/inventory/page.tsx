@@ -54,9 +54,6 @@ export default function InventoryPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex h-16 items-center justify-between border-b px-6">
-        <h1 className="text-xl font-bold">AIGuard</h1>
-      </header>
       <main className="flex-1 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">AI System Inventory</h2>

@@ -2,17 +2,25 @@ import { UserButton } from '@clerk/nextjs'
 
 export default function DashboardPage() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex h-16 items-center justify-between border-b px-6">
-        <h1 className="text-xl font-bold">AIGuard</h1>
-        <UserButton />
-      </header>
-      <main className="flex-1 p-6">
-        <h2 className="text-2xl font-semibold">Welcome to AIGuard</h2>
-        <p className="mt-2 text-muted-foreground">
-          Your EU AI Act compliance platform
-        </p>
-      </main>
+    <div className="p-6">
+      <h2 className="text-2xl font-semibold">Welcome to AIGuard</h2>
+      <p className="mt-2 text-gray-500">
+        Your EU AI Act compliance platform
+      </p>
+      <div className="mt-8 grid grid-cols-3 gap-4">
+        <div className="border rounded-lg p-4">
+          <p className="text-sm text-gray-500">Total AI Systems</p>
+          <p className="text-3xl font-bold mt-1">0</p>
+        </div>
+        <div className="border rounded-lg p-4">
+          <p className="text-sm text-gray-500">High Risk</p>
+          <p className="text-3xl font-bold mt-1 text-red-600">0</p>
+        </div>
+        <div className="border rounded-lg p-4">
+          <p className="text-sm text-gray-500">Compliant</p>
+          <p className="text-3xl font-bold mt-1 text-green-600">0</p>
+        </div>
+      </div>
     </div>
   )
 }

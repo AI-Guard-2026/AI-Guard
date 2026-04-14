@@ -29,6 +29,8 @@ const statusColors: Record<string, string> = {
   'Compliant': 'bg-green-200 text-green-800',
 }
 
+const ALL_STATUSES = ['All', 'Unclassified', 'High Risk', 'Limited Risk', 'Minimal Risk', 'Compliant']
+
 const initialSystems = [
   { id: '1', name: 'Credit Scoring Model', vendor: 'Internal', purpose: 'Loan decisioning', status: 'High Risk' },
   { id: '2', name: 'Fraud Detection', vendor: 'Stripe', purpose: 'Transaction monitoring', status: 'Unclassified' },
@@ -39,6 +41,17 @@ export default function InventoryPage() {
   const [systems, setSystems] = useState(initialSystems)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ name: '', vendor: '', purpose: '' })
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+
+  const filtered = systems.filter(s => {
+    const matchesSearch =
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.vendor.toLowerCase().includes(search.toLowerCase()) ||
+      s.purpose.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus = statusFilter === 'All' || s.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   function handleAdd() {
     if (!form.name) return
@@ -99,6 +112,32 @@ export default function InventoryPage() {
             </Dialog>
           </div>
         </div>
+
+        {/* Search and filter bar */}
+        <div className="flex gap-3 mb-4">
+          <Input
+            placeholder="Search systems..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="max-w-sm"
+          />
+          <div className="flex gap-2 flex-wrap">
+            {ALL_STATUSES.map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilter === s
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -109,18 +148,26 @@ export default function InventoryPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {systems.map((system) => (
-              <TableRow key={system.id}>
-                <TableCell className="font-medium">{system.name}</TableCell>
-                <TableCell>{system.vendor}</TableCell>
-                <TableCell>{system.purpose}</TableCell>
-                <TableCell>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[system.status]}`}>
-                    {system.status}
-                  </span>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-gray-400 py-8">
+                  No systems found
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filtered.map((system) => (
+                <TableRow key={system.id}>
+                  <TableCell className="font-medium">{system.name}</TableCell>
+                  <TableCell>{system.vendor}</TableCell>
+                  <TableCell>{system.purpose}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[system.status]}`}>
+                      {system.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </main>

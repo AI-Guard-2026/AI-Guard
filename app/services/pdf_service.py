@@ -358,14 +358,6 @@ def generate_pdf_bytes(
             elems.append(Paragraph(str(value), styles["body"]))
             elems.append(Spacer(1, 0.2 * cm))
 
-        for subtitle, key in fields:
-            value = section.get(key, "")
-            if not value:
-                continue
-            elements.append(Paragraph(subtitle, styles["h2"]))
-            elements.append(Paragraph(str(value), styles["body"]))
-            elements.append(Spacer(1, 0.2 * cm))
-
     # ── Section 1 — General ───────────────────────────────────
     # Section 1
     add_section(elements, "section_1_general", [

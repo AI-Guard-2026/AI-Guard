@@ -16,6 +16,17 @@ app = FastAPI(
     redoc_url="/redoc",     # ReDoc at /redoc
 )
 
+origins = [
+    "http://localhost:3000",                    # Local Next.js
+    "http://localhost:3001",                    # Alternative port
+    "https://tablet-royal-timid.ngrok-free.dev",# Your ngrok URL — update this
+    "https://*.ngrok-free.app",                 # Allow all ngrok URLs
+    "https://*.ngrok-free.dev",
+]
+
+if settings.APP_ENV == "development":
+    origins = ["*"]  
+
 # CORS — allow frontend to call API
 # In production: replace "*" with your actual frontend domain
 app.add_middleware(

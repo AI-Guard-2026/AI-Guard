@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import CSVUpload from '@/components/shared/csv-upload'
 
 const statusColors: Record<string, string> = {
   'Unclassified': 'bg-gray-100 text-gray-700',
@@ -57,43 +58,46 @@ export default function InventoryPage() {
       <main className="flex-1 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">AI System Inventory</h2>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>+ Add System</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add AI System</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-2">
-                <div>
-                  <Label>System Name</Label>
-                  <Input
-                    placeholder="e.g. Credit Scoring Model"
-                    value={form.name}
-                    onChange={e => setForm({...form, name: e.target.value})}
-                  />
+          <div className="flex gap-2">
+            <CSVUpload onImport={(newSystems) => setSystems([...systems, ...newSystems])} />
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button>+ Add System</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add AI System</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-2">
+                  <div>
+                    <Label>System Name</Label>
+                    <Input
+                      placeholder="e.g. Credit Scoring Model"
+                      value={form.name}
+                      onChange={e => setForm({...form, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label>Vendor</Label>
+                    <Input
+                      placeholder="e.g. Internal / OpenAI"
+                      value={form.vendor}
+                      onChange={e => setForm({...form, vendor: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label>Purpose</Label>
+                    <Input
+                      placeholder="e.g. Loan decisioning"
+                      value={form.purpose}
+                      onChange={e => setForm({...form, purpose: e.target.value})}
+                    />
+                  </div>
+                  <Button className="w-full" onClick={handleAdd}>Add System</Button>
                 </div>
-                <div>
-                  <Label>Vendor</Label>
-                  <Input
-                    placeholder="e.g. Internal / OpenAI"
-                    value={form.vendor}
-                    onChange={e => setForm({...form, vendor: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label>Purpose</Label>
-                  <Input
-                    placeholder="e.g. Loan decisioning"
-                    value={form.purpose}
-                    onChange={e => setForm({...form, purpose: e.target.value})}
-                  />
-                </div>
-                <Button className="w-full" onClick={handleAdd}>Add System</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
         <Table>
           <TableHeader>

@@ -3,11 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
-import { LayoutDashboard, Database } from 'lucide-react'
+import { LayoutDashboard, Database, ShieldCheck } from 'lucide-react'
+
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/inventory', label: 'AI Inventory', icon: Database },
+  { href: '/classify', label: 'Classify System', icon: ShieldCheck },
 ]
 
 export default function DashboardLayout({

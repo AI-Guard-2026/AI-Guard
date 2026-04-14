@@ -145,6 +145,7 @@ export default function InventoryPage() {
               <TableHead>Vendor</TableHead>
               <TableHead>Purpose</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -163,6 +164,9 @@ export default function InventoryPage() {
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[system.status]}`}>
                       {system.status}
+                  <TableCell>
+                    <a href={`/classify?id=${system.id}&name=${system.name}`} className="text-sm text-blue-600 hover:underline">
+                         Classify → </a> </TableCell>
                     </span>
                   </TableCell>
                 </TableRow>

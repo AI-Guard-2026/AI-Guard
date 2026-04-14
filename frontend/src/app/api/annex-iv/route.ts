@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 export const maxDuration = 60
 

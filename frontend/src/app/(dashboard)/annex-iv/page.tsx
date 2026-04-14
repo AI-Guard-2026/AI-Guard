@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 const questions = [
   { id: 'system_name', label: 'System Name', placeholder: 'e.g. Credit Scoring Model' },
@@ -12,9 +14,9 @@ const questions = [
   { id: 'data_sources', label: 'Training Data Sources', placeholder: 'e.g. Historical loan data, credit bureau data' },
   { id: 'architecture', label: 'System Architecture', placeholder: 'e.g. XGBoost model, REST API, PostgreSQL' },
   { id: 'accuracy', label: 'Accuracy / Performance Metrics', placeholder: 'e.g. 94% accuracy, AUC 0.91' },
-  { id: 'bias_testing', label: 'Bias Testing Done', placeholder: 'e.g. Tested for gender and age bias using fairness metrics' },
+  { id: 'bias_testing', label: 'Bias Testing Done', placeholder: 'e.g. Tested for gender and age bias' },
   { id: 'human_override', label: 'Human Override Mechanism', placeholder: 'e.g. Loan officers can override any decision' },
-  { id: 'monitoring', label: 'Monitoring Approach', placeholder: 'e.g. Monthly performance reviews, drift detection' },
+  { id: 'monitoring', label: 'Monitoring Approach', placeholder: 'e.g. Monthly performance reviews' },
   { id: 'deployment_date', label: 'Deployment Date', placeholder: 'e.g. January 2024' },
 ]
 
@@ -32,6 +34,7 @@ export default function AnnexIVPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [document, setDocument] = useState<Document | null>(null)
   const [error, setError] = useState('')
+  const documentRef = useRef<HTMLDivElement>(null)
 
   async function handleGenerate() {
     if (!answers.system_name) {
@@ -61,6 +64,17 @@ export default function AnnexIVPage() {
     }
   }
 
+  async function handleExportPDF() {
+    if (!documentRef.current) return
+    const canvas = await html2canvas(documentRef.current)
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const width = pdf.internal.pageSize.getWidth()
+    const height = (canvas.height * width) / canvas.width
+    pdf.addImage(imgData, 'PNG', 0, 0, width, height)
+    pdf.save(`AIGuard-AnnexIV-${answers.system_name || 'document'}.pdf`)
+  }
+
   if (step === 'loading') {
     return (
       <div className="p-6 max-w-2xl">
@@ -78,12 +92,15 @@ export default function AnnexIVPage() {
       <div className="p-6 max-w-3xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Annex IV — {answers.system_name}</h2>
-          <Button variant="outline" onClick={() => { setStep('form'); setDocument(null) }}>
-            Generate New
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleExportPDF}>Download PDF</Button>
+            <Button variant="outline" onClick={() => { setStep('form'); setDocument(null) }}>
+              Generate New
+            </Button>
+          </div>
         </div>
 
-        <div className="space-y-6">
+        <div ref={documentRef} className="space-y-6">
           {[
             { title: '1. General Description', content: document.general_description },
             { title: '2. System Elements', content: document.system_elements },
@@ -97,12 +114,12 @@ export default function AnnexIVPage() {
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{section.content}</p>
             </div>
           ))}
-        </div>
 
-        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm text-amber-700">
-            ⚠️ This document is AI-generated compliance guidance. Have your legal team review before submission.
-          </p>
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-700">
+              ⚠️ This document is AI-generated compliance guidance. Have your legal team review before submission.
+            </p>
+          </div>
         </div>
       </div>
     )

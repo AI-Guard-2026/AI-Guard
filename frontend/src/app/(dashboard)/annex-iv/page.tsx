@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Label } from '@/components/ui/label'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -29,6 +28,15 @@ interface Document {
   standards_applied: string
 }
 
+const sections = [
+  { key: 'general_description', title: '1. General Description', icon: '📋' },
+  { key: 'system_elements', title: '2. System Elements', icon: '⚙️' },
+  { key: 'development_process', title: '3. Development Process', icon: '🔬' },
+  { key: 'monitoring_control', title: '4. Monitoring & Control', icon: '👁️' },
+  { key: 'technical_specifications', title: '5. Technical Specifications', icon: '📐' },
+  { key: 'standards_applied', title: '6. Standards Applied', icon: '📜' },
+]
+
 export default function AnnexIVPage() {
   const [step, setStep] = useState<'form' | 'loading' | 'result'>('form')
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -37,22 +45,14 @@ export default function AnnexIVPage() {
   const documentRef = useRef<HTMLDivElement>(null)
 
   async function handleGenerate() {
-    if (!answers.system_name) {
-      setError('System name is required')
-      return
-    }
+    if (!answers.system_name) { setError('System name is required'); return }
     setStep('loading')
     setError('')
-
     try {
       const res = await fetch('/api/annex-iv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemName: answers.system_name,
-          classification: 'High Risk',
-          answers,
-        }),
+        body: JSON.stringify({ systemName: answers.system_name, classification: 'High Risk', answers }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -77,11 +77,15 @@ export default function AnnexIVPage() {
 
   if (step === 'loading') {
     return (
-      <div className="p-6 max-w-2xl">
-        <h2 className="text-2xl font-semibold mb-4">Generating Annex IV Document...</h2>
-        <p className="text-gray-500 mb-6">Claude is generating your compliance documentation. This takes 20–40 seconds.</p>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div className="bg-black h-2 rounded-full w-2/3 animate-pulse" />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '24px' }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #f5f5f7', borderTopColor: '#0071e3' }}
+        />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', marginBottom: '6px' }}>Generating Annex IV Document</div>
+          <div style={{ fontSize: '13px', color: '#86868b' }}>Claude is drafting your compliance documentation...</div>
         </div>
       </div>
     )
@@ -89,65 +93,105 @@ export default function AnnexIVPage() {
 
   if (step === 'result' && document) {
     return (
-      <div className="p-6 max-w-3xl">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Annex IV — {answers.system_name}</h2>
-          <div className="flex gap-2">
-            <Button onClick={handleExportPDF}>Download PDF</Button>
-            <Button variant="outline" onClick={() => { setStep('form'); setDocument(null) }}>
-              Generate New
-            </Button>
-          </div>
-        </div>
+      <div style={{ padding: '28px' }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
 
-        <div ref={documentRef} className="space-y-6">
-          {[
-            { title: '1. General Description', content: document.general_description },
-            { title: '2. System Elements', content: document.system_elements },
-            { title: '3. Development Process', content: document.development_process },
-            { title: '4. Monitoring & Control', content: document.monitoring_control },
-            { title: '5. Technical Specifications', content: document.technical_specifications },
-            { title: '6. Standards Applied', content: document.standards_applied },
-          ].map((section) => (
-            <div key={section.title} className="border rounded-lg p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">{section.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{section.content}</p>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div>
+              <div style={{ fontSize: '13px', color: '#86868b', marginBottom: '4px' }}>Annex IV Technical Documentation</div>
+              <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.4px' }}>{answers.system_name}</h2>
             </div>
-          ))}
-
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-sm text-amber-700">
-              ⚠️ This document is AI-generated compliance guidance. Have your legal team review before submission.
-            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleExportPDF}
+                style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}
+              >
+                Download PDF
+              </button>
+              <button
+                onClick={() => { setStep('form'); setDocument(null) }}
+                style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
+              >
+                Generate New
+              </button>
+            </div>
           </div>
-        </div>
+
+          {/* Document */}
+          <div ref={documentRef} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {sections.map((section, i) => (
+              <motion.div
+                key={section.key}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                style={{ background: '#fff', borderRadius: '14px', padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '18px' }}>{section.icon}</span>
+                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1d1d1f' }}>{section.title}</h3>
+                </div>
+                <p style={{ fontSize: '13px', color: '#3a3a3c', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                  {document[section.key as keyof Document]}
+                </p>
+              </motion.div>
+            ))}
+
+            <div style={{ background: '#fff8ec', borderRadius: '12px', padding: '14px 18px', border: '0.5px solid #ffe0b2' }}>
+              <p style={{ fontSize: '12px', color: '#b7600a', fontWeight: 500 }}>
+                ⚠️ This document is AI-generated compliance guidance. Have your legal team review before submission.
+              </p>
+            </div>
+          </div>
+        </motion.div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-2xl">
-      <h2 className="text-2xl font-semibold mb-2">Generate Annex IV Document</h2>
-      <p className="text-gray-500 mb-6">Fill in the details below. Claude will generate your complete Annex IV technical documentation.</p>
+    <div style={{ padding: '28px', maxWidth: '680px' }}>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.4px', marginBottom: '4px' }}>
+          Generate Annex IV Document
+        </h2>
+        <p style={{ fontSize: '13px', color: '#86868b', marginBottom: '28px' }}>
+          Fill in the details below. Claude will generate your complete Annex IV technical documentation.
+        </p>
 
-      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-
-      <div className="space-y-4">
-        {questions.map((q) => (
-          <div key={q.id}>
-            <Label>{q.label}</Label>
-            <Input
-              placeholder={q.placeholder}
-              value={answers[q.id] || ''}
-              onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
-            />
+        {error && (
+          <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#ff3b30' }}>
+            {error}
           </div>
-        ))}
-      </div>
+        )}
 
-      <Button className="mt-6 w-full" onClick={handleGenerate}>
-        Generate Annex IV Document
-      </Button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          {questions.map((q) => (
+            <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#3a3a3c' }}>{q.label}</label>
+              <input
+                placeholder={q.placeholder}
+                value={answers[q.id] || ''}
+                onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
+                style={{
+                  padding: '9px 12px', borderRadius: '10px',
+                  border: '0.5px solid rgba(0,0,0,0.12)',
+                  fontSize: '13px', color: '#1d1d1f',
+                  background: '#fff', outline: 'none',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                }}
+              />
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleGenerate}
+          style={{ width: '100%', padding: '13px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}
+        >
+          Generate Annex IV Document
+        </button>
+      </motion.div>
     </div>
   )
 }

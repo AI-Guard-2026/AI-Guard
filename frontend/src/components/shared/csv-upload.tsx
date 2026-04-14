@@ -25,7 +25,6 @@ export default function CSVUpload({ onImport }: Props) {
     if (!file) return
     setFileName(file.name)
     setError('')
-
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
@@ -34,14 +33,11 @@ export default function CSVUpload({ onImport }: Props) {
       const nameIdx = headers.indexOf('name')
       const vendorIdx = headers.indexOf('vendor')
       const purposeIdx = headers.indexOf('purpose')
-
       if (nameIdx === -1) { setError('CSV must have a "name" column'); return }
-
       const systems = lines.slice(1).map(line => {
         const cols = line.split(',').map(c => c.trim())
         return { name: cols[nameIdx] || '', vendor: cols[vendorIdx] || '', purpose: cols[purposeIdx] || '', status: 'Unclassified' }
       }).filter(s => s.name)
-
       setParsed(systems)
     }
     reader.readAsText(file)
@@ -68,45 +64,22 @@ export default function CSVUpload({ onImport }: Props) {
       </button>
 
       {open && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.3)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
         >
-          <div style={{
-            background: '#fff', borderRadius: '20px', padding: '28px',
-            width: '480px', boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
-          }}>
-            {/* Header */}
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '28px', width: '480px', boxShadow: '0 24px 48px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.3px' }}>Import AI Systems</h2>
                 <p style={{ fontSize: '12px', color: '#86868b', marginTop: '3px' }}>CSV must have columns: name, vendor, purpose</p>
               </div>
-              <button
-                onClick={() => setOpen(false)}
-                style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#f5f5f7', cursor: 'pointer', fontSize: '14px', color: '#86868b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                ✕
-              </button>
+              <button onClick={() => setOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#f5f5f7', cursor: 'pointer', fontSize: '14px', color: '#86868b' }}>✕</button>
             </div>
 
-            {/* Drop Zone */}
             <div
               {...getRootProps()}
-              style={{
-                border: `1.5px dashed ${isDragActive ? '#0071e3' : 'rgba(0,0,0,0.15)'}`,
-                borderRadius: '14px',
-                padding: '32px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: isDragActive ? '#f0f6ff' : '#fafafa',
-                transition: 'all 0.15s',
-                marginBottom: '16px',
-              }}
+              style={{ border: `1.5px dashed ${isDragActive ? '#0071e3' : 'rgba(0,0,0,0.15)'}`, borderRadius: '14px', padding: '32px', textAlign: 'center', cursor: 'pointer', background: isDragActive ? '#f0f6ff' : '#fafafa', transition: 'all 0.15s', marginBottom: '16px' }}
             >
               <input {...getInputProps()} />
               <div style={{ fontSize: '28px', marginBottom: '10px' }}>📂</div>
@@ -120,11 +93,7 @@ export default function CSVUpload({ onImport }: Props) {
               )}
             </div>
 
-            {error && (
-              <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#ff3b30' }}>
-                {error}
-              </div>
-            )}
+            {error && <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#ff3b30' }}>{error}</div>}
 
             {parsed.length > 0 && (
               <div>
@@ -135,10 +104,7 @@ export default function CSVUpload({ onImport }: Props) {
                     <div style={{ fontSize: '11px', color: '#86868b', marginTop: '2px' }}>{parsed.map(s => s.name).join(', ')}</div>
                   </div>
                 </div>
-                <button
-                  onClick={handleImport}
-                  style={{ width: '100%', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}
-                >
+                <button onClick={handleImport} style={{ width: '100%', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}>
                   Import {parsed.length} Systems
                 </button>
               </div>

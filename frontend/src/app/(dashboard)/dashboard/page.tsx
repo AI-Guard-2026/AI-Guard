@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 const metrics = [
@@ -29,7 +30,15 @@ const dotColors: Record<string, string> = {
   'Minimal Risk': '#30d158',
 }
 
+const donutSlices = [
+  { label: 'High Risk', count: '4', color: '#ff3b30', hoverColor: '#ff2020', dashArray: '88 88', dashOffset: '0' },
+  { label: 'Limited', count: '2', color: '#ff9500', hoverColor: '#ff8800', dashArray: '22 154', dashOffset: '-88' },
+  { label: 'Minimal', count: '2', color: '#30d158', hoverColor: '#25c050', dashArray: '66 110', dashOffset: '-110' },
+]
+
 export default function DashboardPage() {
+  const [hoveredSlice, setHoveredSlice] = useState<string | null>(null)
+
   return (
     <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
@@ -103,11 +112,8 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {systems.map((s, i) => (
-                <motion.tr
+                <tr
                   key={s.name}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.25 + i * 0.05 }}
                   style={{ cursor: 'pointer' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -132,7 +138,7 @@ export default function DashboardPage() {
                       {s.status === 'Unclassified' ? 'Classify →' : 'View →'}
                     </button>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -141,7 +147,7 @@ export default function DashboardPage() {
         {/* Right Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* Donut */}
+          {/* Donut Chart */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -152,15 +158,69 @@ export default function DashboardPage() {
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#1d1d1f' }}>Risk Distribution</span>
             </div>
             <div style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <svg width="76" height="76" viewBox="0 0 76 76">
-                <circle cx="38" cy="38" r="28" fill="none" stroke="#f5f5f7" strokeWidth="11"/>
-                <circle cx="38" cy="38" r="28" fill="none" stroke="#ff3b30" strokeWidth="11" strokeDasharray="88 88" strokeDashoffset="0" transform="rotate(-90 38 38)"/>
-                <circle cx="38" cy="38" r="28" fill="none" stroke="#ff9500" strokeWidth="11" strokeDasharray="22 154" strokeDashoffset="-88" transform="rotate(-90 38 38)"/>
-                <circle cx="38" cy="38" r="28" fill="none" stroke="#30d158" strokeWidth="11" strokeDasharray="66 110" strokeDashoffset="-110" transform="rotate(-90 38 38)"/>
-              </svg>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                {[['#ff3b30', 'High Risk', '4'], ['#ff9500', 'Limited', '2'], ['#30d158', 'Minimal', '2']].map(([color, label, count]) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ position: 'relative', width: '76px', height: '76px', flexShrink: 0 }}>
+                <svg width="76" height="76" viewBox="0 0 76 76" style={{ overflow: 'visible' }}>
+  <circle cx="38" cy="38" r="28" fill="none" stroke="#f5f5f7" strokeWidth="11"/>
+  {donutSlices.map((slice) => (
+    <circle
+      key={slice.label}
+      cx="38" cy="38" r="28" fill="none"
+      stroke={hoveredSlice === slice.label ? slice.hoverColor : slice.color}
+      strokeWidth={hoveredSlice === slice.label ? 15 : 11}
+      strokeDasharray={slice.dashArray}
+      strokeDashoffset={slice.dashOffset}
+      transform="rotate(-90 38 38)"
+      style={{ transition: 'all 0.2s ease', cursor: 'pointer' }}
+      onMouseEnter={() => setHoveredSlice(slice.label)}
+      onMouseLeave={() => setHoveredSlice(null)}
+    />
+  ))}
+  {/* Invisible wider overlay circles for better hover detection */}
+  {donutSlices.map((slice) => (
+    <circle
+      key={`overlay-${slice.label}`}
+      cx="38" cy="38" r="28" fill="none"
+      stroke="transparent"
+      strokeWidth="20"
+      strokeDasharray={slice.dashArray}
+      strokeDashoffset={slice.dashOffset}
+      transform="rotate(-90 38 38)"
+      style={{ cursor: 'pointer' }}
+      onMouseEnter={() => setHoveredSlice(slice.label)}
+      onMouseLeave={() => setHoveredSlice(null)}
+    />
+  ))}
+</svg>
+                {hoveredSlice && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#1d1d1f', lineHeight: 1 }}>
+                      {donutSlices.find(s => s.label === hoveredSlice)?.count}
+                    </div>
+                    <div style={{ fontSize: '8px', color: '#86868b', textAlign: 'center', marginTop: '2px' }}>
+                      {hoveredSlice}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                {donutSlices.map(({ color, label, count }) => (
+                  <div
+                    key={label}
+                    onMouseEnter={() => setHoveredSlice(label)}
+                    onMouseLeave={() => setHoveredSlice(null)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '6px 8px', borderRadius: '6px', cursor: 'pointer',
+                      background: hoveredSlice === label ? `${color}18` : 'transparent',
+                      transition: 'background 0.15s',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#3a3a3c' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }}></div>
                       {label}

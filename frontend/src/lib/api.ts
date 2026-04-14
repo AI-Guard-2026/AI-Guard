@@ -25,7 +25,11 @@ async function apiFetch(
   }
 
   if (res.status === 204) return null
-  return res.json()
+  try {
+    return await res.json()
+  } catch {
+    return null
+  }
 }
 
 // ─── Users ───────────────────────────────────────────────

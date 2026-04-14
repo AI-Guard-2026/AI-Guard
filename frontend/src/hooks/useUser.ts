@@ -1,24 +1,15 @@
 // src/hooks/useUser.ts
-// Fetches current user from backend after Clerk auth
-// Returns user data including org_id needed for all API calls
+// Temporary: creates an org on first load, stores org_id in localStorage
+// Will be updated once Person 1 adds /users/register and /users/me endpoints
 
 import { useEffect, useState } from 'react'
 import { useAuth, useUser as useClerkUser } from '@clerk/nextjs'
-import { getMe, registerUser } from '@/lib/api'
 
-interface BackendUser {
-  id: string
-  email: string
-  full_name: string
-  clerk_user_id: string
-  organisation_id: string
-  role: string
-}
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tablet-royal-timid.ngrok-free.dev/api/v1'
 
 export function useUser() {
   const { getToken } = useAuth()
   const { user: clerkUser } = useClerkUser()
-  const [user, setUser] = useState<BackendUser | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,22 +22,39 @@ export function useUser() {
         const token = await getToken()
         if (!token) return
 
-        // Try to get existing user
-        let backendUser: BackendUser
-        try {
-          backendUser = await getMe(token)
-        } catch {
-          // User doesn't exist yet — register them
-          backendUser = await registerUser(token, {
-            email: clerkUser!.emailAddresses[0].emailAddress,
-            full_name: clerkUser!.fullName || clerkUser!.firstName || 'User',
-            clerk_user_id: clerkUser!.id,
-            role: 'admin',
-          })
+        // Check if we already have an org stored for this Clerk user
+        const storageKey = `aiguard_org_${clerkUser!.id}`
+        const stored = localStorage.getItem(storageKey)
+
+        if (stored) {
+          setOrgId(stored)
+          setLoading(false)
+          return
         }
 
-        setUser(backendUser)
-        setOrgId(backendUser.organisation_id)
+        // No org yet — create one
+        const res = await fetch(`${BASE_URL}/organisations/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true',
+          },
+          body: JSON.stringify({
+            name: clerkUser!.fullName || clerkUser!.firstName || 'My Organisation',
+            sector: 'technology',
+            country: 'Ireland',
+          }),
+        })
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.detail || `Failed to create org: ${res.status}`)
+        }
+
+        const org = await res.json()
+        localStorage.setItem(storageKey, org.id)
+        setOrgId(org.id)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -57,5 +65,5 @@ export function useUser() {
     init()
   }, [clerkUser])
 
-  return { user, orgId, loading, error }
+  return { orgId, loading, error }
 }

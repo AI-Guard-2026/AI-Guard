@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useRef, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
-import { generateDocument, exportPDF } from '@/lib/api'
+import { generateDocument } from '@/lib/api'
 
 const questions = [
   { id: 'system_name', label: 'System Name', placeholder: 'e.g. Credit Scoring Model' },
@@ -21,13 +21,24 @@ const questions = [
 ]
 
 const sections = [
-  { key: 'general_description', title: '1. General Description', icon: '📋' },
-  { key: 'system_elements', title: '2. System Elements', icon: '⚙️' },
-  { key: 'development_process', title: '3. Development Process', icon: '🔬' },
-  { key: 'monitoring_control', title: '4. Monitoring & Control', icon: '👁️' },
-  { key: 'technical_specifications', title: '5. Technical Specifications', icon: '📐' },
-  { key: 'standards_applied', title: '6. Standards Applied', icon: '📜' },
+  { key: 'section_1_general', title: '1. General Description', icon: '📋' },
+  { key: 'section_2_architecture', title: '2. System Architecture & Elements', icon: '⚙️' },
+  { key: 'section_3_data', title: '3. Training Data & Governance', icon: '🗄️' },
+  { key: 'section_4_performance', title: '4. Performance Metrics & Testing', icon: '📐' },
+  { key: 'section_5_oversight', title: '5. Human Oversight Mechanisms', icon: '👁️' },
+  { key: 'section_6_logging', title: '6. Logging & Change Management', icon: '🔬' },
+  { key: 'section_7_compliance', title: '7. Compliance Declaration', icon: '📜' },
 ]
+
+// Flatten nested section object into readable text
+function sectionToText(sectionObj: any): string {
+  if (!sectionObj) return ''
+  if (typeof sectionObj === 'string') return sectionObj
+  return Object.entries(sectionObj)
+    .filter(([key, val]) => key !== 'title' && typeof val === 'string' && val.trim())
+    .map(([_, val]) => val as string)
+    .join('\n\n')
+}
 
 function AnnexIVContent() {
   const { getToken } = useAuth()
@@ -66,18 +77,92 @@ function AnnexIVContent() {
   }
 
   async function handleExportPDF() {
-    if (!documentId || !orgId || !systemId) return
+    if (!annexDoc) return
     setPdfLoading(true)
     try {
-      const token = await getToken()
-      if (!token) return
-      const blob = await exportPDF(token, orgId, systemId, documentId)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `AIGuard-AnnexIV-${answers.system_name.replace(/ /g, '_')}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
+      const { default: jsPDF } = await import('jspdf')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 20
+      const contentWidth = pageWidth - margin * 2
+      let y = 20
+
+      const addText = (text: string, fontSize: number, style: 'normal' | 'bold', color: [number, number, number]) => {
+        pdf.setFontSize(fontSize)
+        pdf.setFont('helvetica', style)
+        pdf.setTextColor(...color)
+        const lines = pdf.splitTextToSize(text, contentWidth)
+        lines.forEach((line: string) => {
+          if (y > pageHeight - 20) { pdf.addPage(); y = 20 }
+          pdf.text(line, margin, y)
+          y += fontSize * 0.45
+        })
+      }
+
+      // Header block
+      pdf.setFillColor(29, 29, 31)
+      pdf.roundedRect(margin, y, contentWidth, 30, 3, 3, 'F')
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(255, 255, 255)
+      pdf.text('AIGuard — Annex IV Technical Documentation', margin + 6, y + 12)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(180, 180, 180)
+      pdf.text(`EU AI Act 2024/1689 | Generated ${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}`, margin + 6, y + 22)
+      y += 38
+
+      // System info row
+      pdf.setFillColor(245, 245, 247)
+      pdf.roundedRect(margin, y, contentWidth, 20, 2, 2, 'F')
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(29, 29, 31)
+      pdf.text(`System: ${answers.system_name}`, margin + 6, y + 8)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(134, 134, 139)
+      pdf.text(`Vendor: ${answers.vendor || 'N/A'}   |   Classification: High Risk   |   Deployed: ${answers.deployment_date || 'N/A'}`, margin + 6, y + 15)
+      y += 28
+
+      // Sections — use correct backend keys, flatten nested objects
+      const sectionData = [
+        { title: '1. General Description', key: 'section_1_general' },
+        { title: '2. System Architecture & Elements', key: 'section_2_architecture' },
+        { title: '3. Training Data & Governance', key: 'section_3_data' },
+        { title: '4. Performance Metrics & Testing', key: 'section_4_performance' },
+        { title: '5. Human Oversight Mechanisms', key: 'section_5_oversight' },
+        { title: '6. Logging & Change Management', key: 'section_6_logging' },
+        { title: '7. Compliance Declaration', key: 'section_7_compliance' },
+      ]
+
+      sectionData.forEach(section => {
+        const content = sectionToText(annexDoc[section.key])
+        if (!content) return
+        if (y > pageHeight - 40) { pdf.addPage(); y = 20 }
+
+        pdf.setFillColor(0, 113, 227)
+        pdf.roundedRect(margin, y, contentWidth, 11, 2, 2, 'F')
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(255, 255, 255)
+        pdf.text(section.title, margin + 5, y + 7.5)
+        y += 15
+
+        addText(content, 9, 'normal', [58, 58, 60])
+        y += 8
+      })
+
+      // Disclaimer
+      if (y > pageHeight - 20) { pdf.addPage(); y = 20 }
+      pdf.setFillColor(255, 248, 236)
+      pdf.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F')
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(183, 96, 10)
+      pdf.text('AI-generated compliance guidance. Legal review recommended before submission.', margin + 4, y + 8)
+
+      pdf.save(`AIGuard-AnnexIV-${answers.system_name.replace(/ /g, '_')}.pdf`)
     } catch (err: any) {
       setError(err.message || 'PDF export failed')
     } finally {
@@ -139,7 +224,8 @@ function AnnexIVContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {sections.map((section, i) => {
-              const content = typeof annexDoc === 'object' ? annexDoc[section.key] : null
+              const raw = annexDoc?.[section.key]
+              const content = sectionToText(raw)
               if (!content) return null
               return (
                 <motion.div

@@ -7,9 +7,6 @@ import { useUser } from '@/hooks/useUser'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -154,27 +151,57 @@ export default function InventoryPage() {
           </label>
 
           {/* Add System */}
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <button style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}>
-                + Add System
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add AI System</DialogTitle>
-              </DialogHeader>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
-                <div><Label>System Name *</Label><Input placeholder="e.g. Credit Scoring Model" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-                <div><Label>Vendor</Label><Input placeholder="e.g. Internal / OpenAI" value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} /></div>
-                <div><Label>Purpose *</Label><Input placeholder="e.g. Loan decisioning" value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })} /></div>
-                <div><Label>Sector</Label><Input placeholder="e.g. fintech, healthcare" value={form.sector} onChange={e => setForm({ ...form, sector: e.target.value })} /></div>
-                <Button style={{ width: '100%' }} onClick={handleAdd} disabled={submitting}>
-                  {submitting ? 'Adding...' : 'Add System'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <button
+            onClick={() => setOpen(true)}
+            style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}
+          >
+            + Add System
+          </button>
+
+          {/* Custom Modal */}
+          {open && (
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ background: '#fff', borderRadius: '20px', padding: '28px', width: '480px', boxShadow: '0 24px 48px rgba(0,0,0,0.15)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.3px' }}>Add AI System</h2>
+                  <button onClick={() => setOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#f5f5f7', cursor: 'pointer', fontSize: '14px', color: '#86868b' }}>✕</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { label: 'System Name *', key: 'name', placeholder: 'e.g. Credit Scoring Model' },
+                    { label: 'Vendor', key: 'vendor', placeholder: 'e.g. Internal / OpenAI' },
+                    { label: 'Purpose *', key: 'purpose', placeholder: 'e.g. Loan decisioning' },
+                    { label: 'Sector', key: 'sector', placeholder: 'e.g. fintech, healthcare' },
+                  ].map(field => (
+                    <div key={field.key}>
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#3a3a3c', display: 'block', marginBottom: '5px' }}>{field.label}</label>
+                      <input
+                        placeholder={field.placeholder}
+                        value={form[field.key as keyof typeof form]}
+                        onChange={e => setForm({ ...form, [field.key]: e.target.value })}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '0.5px solid rgba(0,0,0,0.12)', fontSize: '13px', color: '#1d1d1f', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={handleAdd}
+                    disabled={submitting}
+                    style={{ width: '100%', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: submitting ? 'wait' : 'pointer', border: 'none', background: '#0071e3', color: '#fff', marginTop: '6px', opacity: submitting ? 0.7 : 1 }}
+                  >
+                    {submitting ? 'Adding...' : 'Add System'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -264,11 +291,11 @@ export default function InventoryPage() {
                     </TableCell>
                     <TableCell style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        
+                        <a
                           href={`/classify?id=${system.id}&name=${encodeURIComponent(system.name)}`}
                           style={{ background: '#f5f5f7', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', color: '#0071e3', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}
-                        
-                          {tier === 'unclassified' ? 'Classify →' : 'Reclassify →'}
+                        >
+                          {tier === 'unclassified' ? 'Classify' : 'Reclassify'}
                         </a>
                         <button
                           onClick={() => handleDelete(system.id)}

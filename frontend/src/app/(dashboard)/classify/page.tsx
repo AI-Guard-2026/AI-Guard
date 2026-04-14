@@ -83,7 +83,15 @@ function ClassifyContent() {
   }
 
   if (result) {
-    const tier = result.risk_tier || 'minimal_risk'
+    const tierMap: Record<string, string> = {
+      'high': 'high_risk',
+      'limited': 'limited_risk',
+      'minimal': 'minimal_risk',
+      'high_risk': 'high_risk',
+      'limited_risk': 'limited_risk',
+      'minimal_risk': 'minimal_risk',
+    }
+    const tier = tierMap[result.risk_tier] || 'minimal_risk'
     const config = tierConfig[tier] || tierConfig['minimal_risk']
 
     return (

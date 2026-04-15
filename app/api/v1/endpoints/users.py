@@ -1,5 +1,6 @@
 # app/api/v1/endpoints/users.py
 # User registration and management endpoints
+# Simple version — no JWT auth required
 
 import uuid
 from typing import List
@@ -18,7 +19,7 @@ router = APIRouter()
 @router.post(
     "/register",
     response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
 )
 def register_user(
     payload: UserCreate,
@@ -26,22 +27,32 @@ def register_user(
 ):
     """
     Register a new user after Clerk signup.
-    Call this immediately after user signs up on frontend.
-    Automatically creates an organisation for the first user.
+    If user already exists — return existing user.
+    Called every time user logs in from frontend.
     """
 
-    # Check email not already registered
-    existing = db.query(User).filter(
+    # Check 1 — already registered with this Clerk ID
+    if payload.clerk_user_id:
+        existing = db.query(User).filter(
+            User.clerk_user_id == payload.clerk_user_id
+        ).first()
+        if existing:
+            return existing
+
+    # Check 2 — registered with same email
+    existing_by_email = db.query(User).filter(
         User.email == payload.email
     ).first()
 
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
-        )
+    if existing_by_email:
+        # Update clerk_user_id if missing
+        if payload.clerk_user_id:
+            existing_by_email.clerk_user_id = payload.clerk_user_id  # type: ignore
+            db.commit()
+            db.refresh(existing_by_email)
+        return existing_by_email
 
-    # Auto create organisation for this user
+    # Check 3 — brand new user — create user + organisation
     org = Organisation(
         name=f"{payload.full_name or payload.email}'s Organisation",
         is_active=True,
@@ -50,7 +61,6 @@ def register_user(
     db.add(org)
     db.flush()
 
-    # Create user as admin of their org
     user = User(
         email=payload.email,
         full_name=payload.full_name,
@@ -83,33 +93,75 @@ def register_user(
 
 @router.get("/me", response_model=UserResponse)
 def get_me(
+    clerk_user_id: str,
     db: Session = Depends(get_db),
 ):
     """
-    Get current user profile.
-    TODO: Add Clerk auth dependency once keys are configured.
-    For now returns first user for testing.
+    Get user profile by Clerk user ID.
+    Frontend passes clerk_user_id as query param.
+
+    Usage:
+    GET /api/v1/users/me?clerk_user_id=user_abc123
     """
-    user = db.query(User).first()
+    user = db.query(User).filter(
+        User.clerk_user_id == clerk_user_id
+    ).first()
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No users found",
+            detail="User not found. Please register first at POST /api/v1/users/register",
         )
     return user
 
 
-@router.patch("/me", response_model=UserResponse)
-def update_me(
-    payload: UserUpdate,
+@router.get("/find", response_model=UserResponse)
+def find_user_by_email(
+    email: str,
     db: Session = Depends(get_db),
 ):
-    """Update current user profile."""
-    user = db.query(User).first()
+    """Find user by email — for debugging."""
+    user = db.query(User).filter(
+        User.email == email
+    ).first()
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No users found",
+            detail=f"User with email '{email}' not found",
+        )
+    return user
+
+
+@router.get("/all", response_model=List[UserResponse])
+def list_all_users(
+    db: Session = Depends(get_db),
+):
+    """List all users — for debugging."""
+    return db.query(User).all()
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    clerk_user_id: str,
+    payload: UserUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Update current user profile.
+    Pass clerk_user_id as query param to identify user.
+
+    Usage:
+    PATCH /api/v1/users/me?clerk_user_id=user_abc123
+    """
+    user = db.query(User).filter(
+        User.clerk_user_id == clerk_user_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found. Please register first at POST /api/v1/users/register",
         )
 
     update_data = payload.model_dump(exclude_unset=True)
@@ -149,7 +201,6 @@ def invite_user(
     db: Session = Depends(get_db),
 ):
     """Invite a new user to an organisation."""
-
     existing = db.query(User).filter(
         User.email == payload.email
     ).first()
@@ -179,7 +230,10 @@ def invite_user(
         user_email=str(new_user.email),
         entity_type="user",
         entity_id=str(new_user.id),
-        details={"email": new_user.email},
+        details={
+            "email": new_user.email,
+            "role": str(new_user.role),
+        },
     )
 
     db.commit()

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 
 function useScrollReveal() {
@@ -20,6 +21,7 @@ const stagger = {
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false)
+  const { isSignedIn } = useAuth()
   const [typeIndex, setTypeIndex] = useState(0)
   const [particles, setParticles] = useState<Array<{id:number;x:number;y:number;duration:number;delay:number;size:number}>>([])
   const [stars, setStars] = useState<Array<{id:number;x:number;y:number;duration:number;delay:number;size:number;green:boolean}>>([])
@@ -108,7 +110,7 @@ export default function LandingPage() {
           ))}
         </div>
         <motion.a
-          href="/sign-in"
+          href={isSignedIn ? '/dashboard' : '/sign-in'}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           style={{ background: '#fff', color: '#000', padding: '8px 20px', borderRadius: '980px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}
@@ -209,7 +211,7 @@ export default function LandingPage() {
           style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px', position: 'relative', zIndex: 1 }}
         >
           <motion.a
-            href="/sign-up"
+            href={isSignedIn ? '/dashboard' : '/sign-up'}
             whileHover={{ scale: 1.04, boxShadow: '0 8px 32px rgba(255,255,255,0.25)' }}
             whileTap={{ scale: 0.97 }}
             style={{ background: '#fff', color: '#000', padding: '14px 28px', borderRadius: '980px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}
@@ -395,7 +397,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <motion.a
-                href="/sign-up"
+                href={isSignedIn ? '/dashboard' : '/sign-up'}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 style={{ display: 'block', width: '100%', padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none', textAlign: 'center', textDecoration: 'none', background: plan.hot ? '#30d158' : 'rgba(255,255,255,0.06)', color: plan.hot ? '#000' : '#fff' }}
@@ -434,7 +436,7 @@ export default function LandingPage() {
             Companies starting now will be compliant in weeks.<br />Companies that wait will face €35M fines or pay €500K+ in consultants.
           </div>
           <motion.a
-            href="/sign-up"
+            href={isSignedIn ? '/dashboard' : '/sign-up'}
             whileHover={{ scale: 1.04, boxShadow: '0 8px 32px rgba(255,255,255,0.25)' }}
             whileTap={{ scale: 0.97 }}
             style={{ background: '#fff', color: '#000', padding: '14px 36px', borderRadius: '980px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'inline-block', position: 'relative' }}

@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UserButton } from '@clerk/nextjs'
+import { UserButton, SignOutButton } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
+import { useUser } from '@/hooks/useUser'
 
 const navItems = [
   {
@@ -40,10 +41,11 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  useUser() // Register user in backend on every dashboard page load
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#f5f5f7' }}>
-      
+
       {/* Sidebar */}
       <div style={{
         width: '230px',
@@ -108,12 +110,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: '14px 16px', borderTop: '0.5px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <UserButton />
-          <div>
-            <div style={{ color: '#1d1d1f', fontSize: '12px', fontWeight: 500 }}>Account</div>
-            <div style={{ color: '#86868b', fontSize: '11px' }}>AIGuard</div>
+        <div style={{ padding: '14px 16px', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <div suppressHydrationWarning><UserButton /></div>
+            <div>
+              <div style={{ color: '#1d1d1f', fontSize: '12px', fontWeight: 500 }}>Account</div>
+              <div style={{ color: '#86868b', fontSize: '11px' }}>AIGuard</div>
+            </div>
           </div>
+          <SignOutButton>
+            <button style={{
+              width: '100%', padding: '7px', borderRadius: '8px', fontSize: '12px',
+              fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.1)',
+              background: '#fff5f5', color: '#ff3b30',
+            }}>
+              Sign out
+            </button>
+          </SignOutButton>
         </div>
       </div>
 
@@ -131,14 +144,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.2px' }}>
             {navItems.flatMap(g => g.items).find(i => i.href === pathname)?.label || 'AIGuard'}
           </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button style={{ padding: '7px 16px', borderRadius: '980px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: 'none', background: 'rgba(0,0,0,0.06)', color: '#1d1d1f' }}>
-              Import CSV
-            </button>
-            <button style={{ padding: '7px 16px', borderRadius: '980px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#0071e3', color: '#fff' }}>
-              + Add System
-            </button>
-          </div>
         </div>
 
         {/* Page content */}

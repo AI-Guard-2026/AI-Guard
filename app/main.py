@@ -13,28 +13,17 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS — allow frontend to call backend
-origins = [
-    # Local development
-    "http://localhost:3000",
-    "http://localhost:3001",
-    # Vercel deployments
-    "https://aiguardd-8ek0pkzmp-aiguard2026-1088s-projects.vercel.app",
-    "https://aiguard.vercel.app",
-    # Allow all Vercel preview deployments
-    "https://*.vercel.app",
-    # ngrok for local testing
-    "https://*.ngrok-free.app",
-    "https://*.ngrok-free.dev",
-]
-
-# In development allow everything
-if settings.APP_ENV == "development":
-    origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://aiguardd-1447exsw4-aiguard2026-1088s-projects.vercel.app",
+        "https://aiguardd-8ek0pkzmp-aiguard2026-1088s-projects.vercel.app",
+        "https://aiguard.vercel.app",
+        "https://*.vercel.app",
+        "https://*.ngrok-free.app",
+        "https://*.ngrok-free.dev",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

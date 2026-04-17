@@ -8,6 +8,8 @@ from app.api.v1.endpoints import (
     classifications,
     documents,
     users,
+    audit,
+    stats,
 )
 
 api_router = APIRouter()
@@ -41,4 +43,14 @@ api_router.include_router(
     documents.router,
     prefix="/organisations/{org_id}/ai-systems",
     tags=["Documents"],
+)
+api_router.include_router(
+    audit.router,
+    prefix="/organisations/{org_id}",
+    tags=["Audit Logs"],
+)
+api_router.include_router(
+    stats.router,
+    prefix="/organisations/{org_id}",
+    tags=["Dashboard Stats"],
 )

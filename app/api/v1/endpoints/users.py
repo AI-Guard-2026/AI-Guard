@@ -3,7 +3,7 @@
 # Simple version — no JWT auth required
 
 import uuid
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -27,8 +27,11 @@ def register_user(
 ):
     """
     Register a new user after Clerk signup.
-    If user already exists — return existing user.
-    Called every time user logs in from frontend.
+
+    If organisation_id provided → join that organisation
+    If organisation_id not provided → create new organisation
+
+    If user already exists → return existing user.
     """
 
     # Check 1 — already registered with this Clerk ID
@@ -45,28 +48,36 @@ def register_user(
     ).first()
 
     if existing_by_email:
-        # Update clerk_user_id if missing
         if payload.clerk_user_id:
             existing_by_email.clerk_user_id = payload.clerk_user_id  # type: ignore
             db.commit()
             db.refresh(existing_by_email)
         return existing_by_email
 
-    # Check 3 — brand new user — create user + organisation
-    org = Organisation(
-        name=f"{payload.full_name or payload.email}'s Organisation",
-        is_active=True,
-        plan="starter",
-    )
-    db.add(org)
-    db.flush()
+    # Check 3 — new user
+    # If organisation_id provided — join that org
+    # If not — create a new org
+    if payload.organisation_id:
+        org_id = payload.organisation_id
+        role = payload.role or UserRole.VIEWER
+    else:
+        # Create new organisation for this user
+        org = Organisation(
+            name=f"{payload.full_name or payload.email}'s Organisation",
+            is_active=True,
+            plan="starter",
+        )
+        db.add(org)
+        db.flush()
+        org_id = org.id
+        role = UserRole.ADMIN  # First user is always admin
 
     user = User(
         email=payload.email,
         full_name=payload.full_name,
         clerk_user_id=payload.clerk_user_id,
-        organisation_id=org.id,
-        role=UserRole.ADMIN,
+        organisation_id=org_id,
+        role=role,
         is_active=True,
     )
     db.add(user)
@@ -75,14 +86,14 @@ def register_user(
     write_audit_log(
         db=db,
         action="user.registered",
-        organisation_id=str(org.id),
+        organisation_id=str(org_id),
         user_id=str(user.id),
         user_email=str(user.email),
         entity_type="user",
         entity_id=str(user.id),
         details={
             "email": user.email,
-            "org_id": str(org.id),
+            "org_id": str(org_id),
         },
     )
 
@@ -147,13 +158,7 @@ def update_me(
     payload: UserUpdate,
     db: Session = Depends(get_db),
 ):
-    """
-    Update current user profile.
-    Pass clerk_user_id as query param to identify user.
-
-    Usage:
-    PATCH /api/v1/users/me?clerk_user_id=user_abc123
-    """
+    """Update current user profile."""
     user = db.query(User).filter(
         User.clerk_user_id == clerk_user_id
     ).first()

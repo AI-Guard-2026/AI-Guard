@@ -1,315 +1,341 @@
 'use client'
-
-import { useState, Suspense } from 'react'
-import { motion } from 'framer-motion'
-import { useAuth } from '@clerk/nextjs'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
-import { generateDocument } from '@/lib/api'
+import { useAuth } from '@clerk/nextjs'
+import { motion, AnimatePresence } from 'framer-motion'
+import jsPDF from 'jspdf'
 
-const questions = [
-  { id: 'system_name', label: 'System Name', placeholder: 'e.g. Credit Scoring Model' },
-  { id: 'vendor', label: 'Vendor / Developer', placeholder: 'e.g. Internal / OpenAI' },
-  { id: 'purpose', label: 'Primary Purpose', placeholder: 'e.g. Evaluate creditworthiness for loan applications' },
-  { id: 'data_sources', label: 'Training Data Sources', placeholder: 'e.g. Historical loan data, credit bureau data' },
-  { id: 'architecture', label: 'System Architecture', placeholder: 'e.g. XGBoost model, REST API, PostgreSQL' },
-  { id: 'accuracy', label: 'Accuracy / Performance Metrics', placeholder: 'e.g. 94% accuracy, AUC 0.91' },
-  { id: 'bias_testing', label: 'Bias Testing Done', placeholder: 'e.g. Tested for gender and age bias' },
-  { id: 'human_override', label: 'Human Override Mechanism', placeholder: 'e.g. Loan officers can override any decision' },
-  { id: 'monitoring', label: 'Monitoring Approach', placeholder: 'e.g. Monthly performance reviews' },
-  { id: 'deployment_date', label: 'Deployment Date', placeholder: 'e.g. January 2024' },
-]
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tablet-royal-timid.ngrok-free.dev/api/v1'
 
-const sections = [
-  { key: 'section_1_general', title: '1. General Description', icon: '📋' },
-  { key: 'section_2_architecture', title: '2. System Architecture & Elements', icon: '⚙️' },
-  { key: 'section_3_data', title: '3. Training Data & Governance', icon: '🗄️' },
-  { key: 'section_4_performance', title: '4. Performance Metrics & Testing', icon: '📐' },
-  { key: 'section_5_oversight', title: '5. Human Oversight Mechanisms', icon: '👁️' },
-  { key: 'section_6_logging', title: '6. Logging & Change Management', icon: '🔬' },
-  { key: 'section_7_compliance', title: '7. Compliance Declaration', icon: '📜' },
-]
-
-// Flatten nested section object into readable text
-function sectionToText(sectionObj: any): string {
-  if (!sectionObj) return ''
-  if (typeof sectionObj === 'string') return sectionObj
-  return Object.entries(sectionObj)
-    .filter(([key, val]) => key !== 'title' && typeof val === 'string' && val.trim())
-    .map(([_, val]) => val as string)
-    .join('\n\n')
-}
+type Question = { id: string; question: string; help?: string; required: boolean }
+type Section = { title: string; questions: Question[] }
+type QuestionsData = Record<string, Section>
 
 function AnnexIVContent() {
-  const { getToken } = useAuth()
-  const { orgId } = useUser()
   const searchParams = useSearchParams()
-  const router = useRouter()
+  const systemId = searchParams.get('systemId')
+  const systemName = searchParams.get('systemName') || 'AI System'
+  const sector = searchParams.get('sector') || ''
 
-  const systemId = searchParams.get('id') || ''
-  const systemNameFromUrl = searchParams.get('name') || ''
+  const { orgId } = useUser()
+  const { getToken } = useAuth()
 
-  const [step, setStep] = useState<'form' | 'loading' | 'result'>('form')
-  const [answers, setAnswers] = useState<Record<string, string>>({
-    system_name: systemNameFromUrl,
-  })
-  const [annexDoc, setAnnexDoc] = useState<any>(null)
-  const [documentId, setDocumentId] = useState<string>('')
-  const [error, setError] = useState('')
-  const [pdfLoading, setPdfLoading] = useState(false)
+  const [questions, setQuestions] = useState<QuestionsData | null>(null)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [document, setDocument] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [currentSection, setCurrentSection] = useState(0)
 
-  async function handleGenerate() {
-    if (!answers.system_name) { setError('System name is required'); return }
-    if (!systemId) { setError('No system selected. Go to Inventory and click Classify first.'); return }
-    setStep('loading')
-    setError('')
+  useEffect(() => {
+    if (!orgId) return
+    async function fetchQuestions() {
+      try {
+        const token = await getToken()
+        const url = `${BASE_URL}/organisations/${orgId}/ai-systems/documents/interview-questions${sector ? `?sector=${sector}` : ''}`
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true',
+          },
+        })
+        const data = await res.json()
+        setQuestions(data)
+      } catch (e: any) {
+        setError('Failed to load questions')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchQuestions()
+  }, [orgId])
+
+  const sections = questions ? Object.entries(questions) : []
+  const totalSections = sections.length
+  const progress = totalSections > 0 ? ((currentSection + 1) / totalSections) * 100 : 0
+
+  function handleAnswer(id: string, value: string) {
+    setAnswers(prev => ({ ...prev, [id]: value }))
+  }
+
+  function canProceed() {
+    if (!questions || sections.length === 0) return false
+    const [, section] = sections[currentSection]
+    return section.questions.every(q => !q.required || (answers[q.id] && answers[q.id].trim()))
+  }
+
+  async function handleSubmit() {
+    if (!systemId || !orgId) return
+    setSubmitting(true)
+    setError(null)
     try {
       const token = await getToken()
-      if (!token || !orgId) throw new Error('Not authenticated')
-      const data = await generateDocument(token, orgId, systemId, answers)
-      setAnnexDoc(data.content || data)
-      setDocumentId(data.id || '')
-      setStep('result')
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate document. Please try again.')
-      setStep('form')
+      const res = await fetch(
+        `${BASE_URL}/organisations/${orgId}/ai-systems/${systemId}/documents/generate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+          },
+          body: JSON.stringify({ interview_answers: answers }),
+        }
+      )
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
+      const data = await res.json()
+      setDocument(data)
+    } catch (e: any) {
+      setError(e.message || 'Generation failed')
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  async function handleExportPDF() {
-    if (!annexDoc) return
-    setPdfLoading(true)
-    try {
-      const { default: jsPDF } = await import('jspdf')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const margin = 20
-      const contentWidth = pageWidth - margin * 2
-      let y = 20
+  function downloadPDF() {
+    if (!document) return
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const margin = 20
+    const contentWidth = pageWidth - margin * 2
+    let y = 20
 
-      const addText = (text: string, fontSize: number, style: 'normal' | 'bold', color: [number, number, number]) => {
-        pdf.setFontSize(fontSize)
-        pdf.setFont('helvetica', style)
-        pdf.setTextColor(...color)
-        const lines = pdf.splitTextToSize(text, contentWidth)
-        lines.forEach((line: string) => {
-          if (y > pageHeight - 20) { pdf.addPage(); y = 20 }
-          pdf.text(line, margin, y)
-          y += fontSize * 0.45
-        })
-      }
+    pdf.setFillColor(0, 0, 0)
+    pdf.rect(0, 0, pageWidth, 40, 'F')
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFontSize(18)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('Annex IV Technical Documentation', margin, 18)
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(`${systemName} · Generated ${new Date().toLocaleDateString()}`, margin, 30)
+    y = 55
 
-      // Header block
-      pdf.setFillColor(29, 29, 31)
-      pdf.roundedRect(margin, y, contentWidth, 30, 3, 3, 'F')
-      pdf.setFontSize(18)
-      pdf.setFont('helvetica', 'bold')
+    const sectionKeys = Object.keys(document)
+    sectionKeys.forEach((key) => {
+      const section = document[key]
+      if (typeof section !== 'object') return
+
+      if (y > 250) { pdf.addPage(); y = 20 }
+
+      pdf.setFillColor(0, 113, 227)
+      pdf.rect(margin, y, contentWidth, 8, 'F')
       pdf.setTextColor(255, 255, 255)
-      pdf.text('AIGuard — Annex IV Technical Documentation', margin + 6, y + 12)
-      pdf.setFontSize(9)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(180, 180, 180)
-      pdf.text(`EU AI Act 2024/1689 | Generated ${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}`, margin + 6, y + 22)
-      y += 38
-
-      // System info row
-      pdf.setFillColor(245, 245, 247)
-      pdf.roundedRect(margin, y, contentWidth, 20, 2, 2, 'F')
       pdf.setFontSize(10)
       pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(29, 29, 31)
-      pdf.text(`System: ${answers.system_name}`, margin + 6, y + 8)
+      const title = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      pdf.text(title, margin + 3, y + 5.5)
+      y += 13
+
+      pdf.setTextColor(50, 50, 50)
       pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(134, 134, 139)
-      pdf.text(`Vendor: ${answers.vendor || 'N/A'}   |   Classification: High Risk   |   Deployed: ${answers.deployment_date || 'N/A'}`, margin + 6, y + 15)
-      y += 28
+      pdf.setFontSize(9)
 
-      // Sections — use correct backend keys, flatten nested objects
-      const sectionData = [
-        { title: '1. General Description', key: 'section_1_general' },
-        { title: '2. System Architecture & Elements', key: 'section_2_architecture' },
-        { title: '3. Training Data & Governance', key: 'section_3_data' },
-        { title: '4. Performance Metrics & Testing', key: 'section_4_performance' },
-        { title: '5. Human Oversight Mechanisms', key: 'section_5_oversight' },
-        { title: '6. Logging & Change Management', key: 'section_6_logging' },
-        { title: '7. Compliance Declaration', key: 'section_7_compliance' },
-      ]
+      const content = typeof section === 'string'
+        ? section
+        : Object.values(section).filter(v => typeof v === 'string').join('\n\n')
 
-      sectionData.forEach(section => {
-        const content = sectionToText(annexDoc[section.key])
-        if (!content) return
-        if (y > pageHeight - 40) { pdf.addPage(); y = 20 }
-
-        pdf.setFillColor(0, 113, 227)
-        pdf.roundedRect(margin, y, contentWidth, 11, 2, 2, 'F')
-        pdf.setFontSize(10)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(255, 255, 255)
-        pdf.text(section.title, margin + 5, y + 7.5)
-        y += 15
-
-        addText(content, 9, 'normal', [58, 58, 60])
-        y += 8
+      const lines = pdf.splitTextToSize(content, contentWidth)
+      lines.forEach((line: string) => {
+        if (y > 270) { pdf.addPage(); y = 20 }
+        pdf.text(line, margin, y)
+        y += 5
       })
+      y += 8
+    })
 
-      // Disclaimer
-      if (y > pageHeight - 20) { pdf.addPage(); y = 20 }
-      pdf.setFillColor(255, 248, 236)
-      pdf.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F')
-      pdf.setFontSize(8)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(183, 96, 10)
-      pdf.text('AI-generated compliance guidance. Legal review recommended before submission.', margin + 4, y + 8)
-
-      pdf.save(`AIGuard-AnnexIV-${answers.system_name.replace(/ /g, '_')}.pdf`)
-    } catch (err: any) {
-      setError(err.message || 'PDF export failed')
-    } finally {
-      setPdfLoading(false)
-    }
+    pdf.save(`annex-iv-${systemName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
   }
 
-  if (step === 'loading') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '24px' }}>
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-          style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #f5f5f7', borderTopColor: '#0071e3' }}
-        />
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', marginBottom: '6px' }}>Generating Annex IV Document</div>
-          <div style={{ fontSize: '13px', color: '#86868b' }}>AIGuard is drafting your compliance documentation...</div>
-        </div>
-      </div>
-    )
-  }
+  if (!systemId) return (
+    <div style={{ padding: '40px', textAlign: 'center', color: '#86868b' }}>
+      No system selected. Go to <a href="/inventory" style={{ color: '#0071e3' }}>AI Inventory</a> and click Generate Annex IV on a classified system.
+    </div>
+  )
 
-  if (step === 'result' && annexDoc) {
-    return (
-      <div style={{ padding: '28px' }}>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-            <div>
-              <div style={{ fontSize: '13px', color: '#86868b', marginBottom: '4px' }}>Annex IV Technical Documentation</div>
-              <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.4px' }}>{answers.system_name}</h2>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={handleExportPDF}
-                disabled={pdfLoading}
-                style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: pdfLoading ? 'wait' : 'pointer', border: 'none', background: '#0071e3', color: '#fff', opacity: pdfLoading ? 0.7 : 1 }}
-              >
-                {pdfLoading ? 'Exporting...' : 'Download PDF'}
-              </button>
-              <button
-                onClick={() => router.push('/inventory')}
-                style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
-              >
-                Back to Inventory
-              </button>
-              <button
-                onClick={() => { setStep('form'); setAnnexDoc(null); setDocumentId('') }}
-                style={{ padding: '8px 18px', borderRadius: '980px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
-              >
-                Generate New
-              </button>
-            </div>
+  if (loading) return (
+    <div style={{ padding: '40px', textAlign: 'center', color: '#86868b' }}>
+      Loading questions...
+    </div>
+  )
+
+  if (error && !document) return (
+    <div style={{ padding: '40px', textAlign: 'center', color: '#ff3b30' }}>
+      {error}
+    </div>
+  )
+
+  if (document) return (
+    <div style={{ padding: '32px', maxWidth: '800px', margin: '0 auto' }}>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '10px',
+            background: 'linear-gradient(135deg, #30d158, #25a244)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M4 10l4 4 8-8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
-
-          {error && (
-            <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: '#ff3b30' }}>{error}</div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {sections.map((section, i) => {
-              const raw = annexDoc?.[section.key]
-              const content = sectionToText(raw)
-              if (!content) return null
-              return (
-                <motion.div
-                  key={section.key}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  style={{ background: '#fff', borderRadius: '14px', padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>{section.icon}</span>
-                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1d1d1f' }}>{section.title}</h3>
-                  </div>
-                  <p style={{ fontSize: '13px', color: '#3a3a3c', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{content}</p>
-                </motion.div>
-              )
-            })}
-
-            <div style={{ background: '#fff8ec', borderRadius: '12px', padding: '14px 18px', border: '0.5px solid #ffe0b2' }}>
-              <p style={{ fontSize: '12px', color: '#b7600a', fontWeight: 500 }}>
-                ⚠️ AI-generated compliance guidance. Have your legal team review before submission.
-              </p>
-            </div>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#1d1d1f', margin: 0 }}>Document Generated</h1>
+            <p style={{ fontSize: '13px', color: '#86868b', margin: 0 }}>Annex IV Technical Documentation for {systemName}</p>
           </div>
-        </motion.div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ padding: '28px', maxWidth: '680px' }}>
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.4px', marginBottom: '4px' }}>
-          Generate Annex IV Document
-        </h2>
-        <p style={{ fontSize: '13px', color: '#86868b', marginBottom: '28px' }}>
-          {systemId
-            ? `Generating for: ${systemNameFromUrl || 'Selected system'}`
-            : 'Go to Inventory → Classify a system first → then come back here.'}
-        </p>
-
-        {error && (
-          <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#ff3b30' }}>{error}</div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-          {questions.map((q) => (
-            <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#3a3a3c' }}>{q.label}</label>
-              <input
-                placeholder={q.placeholder}
-                value={answers[q.id] || ''}
-                onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
-                style={{
-                  padding: '9px 12px', borderRadius: '10px',
-                  border: '0.5px solid rgba(0,0,0,0.12)',
-                  fontSize: '13px', color: '#1d1d1f',
-                  background: '#fff', outline: 'none',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                }}
-              />
-            </div>
-          ))}
         </div>
 
-        <button
-          onClick={handleGenerate}
-          disabled={!systemId}
-          style={{
-            width: '100%', padding: '13px', borderRadius: '12px', fontSize: '14px',
-            fontWeight: 600, cursor: systemId ? 'pointer' : 'not-allowed',
-            border: 'none', background: systemId ? '#0071e3' : '#aeaeb2', color: '#fff',
-          }}
-        >
-          {systemId ? 'Generate Annex IV Document' : 'Select a system from Inventory first'}
+        {Object.entries(document).map(([key, section]: [string, any]) => (
+          <div key={key} style={{
+            background: '#fff', borderRadius: '12px', padding: '20px',
+            marginBottom: '12px', border: '0.5px solid rgba(0,0,0,0.08)',
+          }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#0071e3', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {key.replace(/_/g, ' ')}
+            </h3>
+            <p style={{ fontSize: '14px', color: '#3a3a3c', lineHeight: '1.6', margin: 0 }}>
+              {typeof section === 'string' ? section : Object.values(section).filter(v => typeof v === 'string').join('\n\n')}
+            </p>
+          </div>
+        ))}
+
+        <button onClick={downloadPDF} style={{
+          marginTop: '16px', padding: '12px 24px', borderRadius: '10px',
+          background: '#0071e3', color: '#fff', border: 'none',
+          fontSize: '14px', fontWeight: 600, cursor: 'pointer', width: '100%',
+        }}>
+          Download PDF
         </button>
       </motion.div>
+    </div>
+  )
+
+  if (sections.length === 0) return (
+    <div style={{ padding: '40px', textAlign: 'center', color: '#86868b' }}>No questions found.</div>
+  )
+
+  const [sectionKey, sectionData] = sections[currentSection]
+  const isLast = currentSection === totalSections - 1
+
+  return (
+    <div style={{ padding: '32px', maxWidth: '700px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#1d1d1f', marginBottom: '4px' }}>
+          Annex IV Documentation
+        </h1>
+        <p style={{ fontSize: '13px', color: '#86868b' }}>{systemName}</p>
+      </div>
+
+      {/* Progress */}
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <span style={{ fontSize: '12px', color: '#86868b' }}>Section {currentSection + 1} of {totalSections}</span>
+          <span style={{ fontSize: '12px', color: '#0071e3', fontWeight: 500 }}>{Math.round(progress)}%</span>
+        </div>
+        <div style={{ height: '4px', background: '#e5e5ea', borderRadius: '2px' }}>
+          <motion.div
+            animate={{ width: `${progress}%` }}
+            style={{ height: '100%', background: '#0071e3', borderRadius: '2px' }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+      </div>
+
+      {/* Section */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={sectionKey}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div style={{
+            background: '#fff', borderRadius: '14px', padding: '24px',
+            border: '0.5px solid rgba(0,0,0,0.08)', marginBottom: '20px',
+          }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#1d1d1f', marginBottom: '20px' }}>
+              {sectionData.title}
+            </h2>
+
+            {sectionData.questions.map((q, i) => (
+              <div key={q.id} style={{ marginBottom: i < sectionData.questions.length - 1 ? '20px' : 0 }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#1d1d1f', marginBottom: '4px' }}>
+                  {q.question}
+                  {q.required && <span style={{ color: '#ff3b30', marginLeft: '3px' }}>*</span>}
+                </label>
+                {q.help && (
+                  <p style={{ fontSize: '12px', color: '#86868b', marginBottom: '6px', marginTop: 0 }}>{q.help}</p>
+                )}
+                <textarea
+                  value={answers[q.id] || ''}
+                  onChange={e => handleAnswer(q.id, e.target.value)}
+                  placeholder="Enter your answer..."
+                  rows={3}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: '8px',
+                    border: '0.5px solid rgba(0,0,0,0.15)', fontSize: '13px',
+                    fontFamily: 'inherit', resize: 'vertical', outline: 'none',
+                    background: '#fafafa', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Navigation */}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        {currentSection > 0 && (
+          <button onClick={() => setCurrentSection(s => s - 1)} style={{
+            flex: 1, padding: '12px', borderRadius: '10px', fontSize: '14px',
+            fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.15)',
+            background: '#fff', color: '#1d1d1f',
+          }}>
+            Back
+          </button>
+        )}
+        {!isLast ? (
+          <button
+            onClick={() => setCurrentSection(s => s + 1)}
+            disabled={!canProceed()}
+            style={{
+              flex: 1, padding: '12px', borderRadius: '10px', fontSize: '14px',
+              fontWeight: 600, cursor: canProceed() ? 'pointer' : 'not-allowed',
+              border: 'none', background: canProceed() ? '#0071e3' : '#e5e5ea',
+              color: canProceed() ? '#fff' : '#86868b',
+            }}
+          >
+            Next Section
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !canProceed()}
+            style={{
+              flex: 1, padding: '12px', borderRadius: '10px', fontSize: '14px',
+              fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
+              border: 'none', background: '#0071e3', color: '#fff',
+            }}
+          >
+            {submitting ? 'Generating...' : 'Generate Annex IV Document'}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p style={{ color: '#ff3b30', fontSize: '13px', marginTop: '12px', textAlign: 'center' }}>{error}</p>
+      )}
     </div>
   )
 }
 
 export default function AnnexIVPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '40px' }}>Loading...</div>}>
+    <Suspense fallback={<div style={{ padding: '40px', color: '#86868b' }}>Loading...</div>}>
       <AnnexIVContent />
     </Suspense>
   )

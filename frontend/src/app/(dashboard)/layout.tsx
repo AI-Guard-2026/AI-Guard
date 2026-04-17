@@ -1,10 +1,8 @@
 'use client'
-
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton, SignOutButton } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
-import { useUser } from '@/hooks/useUser'
 
 const navItems = [
   {
@@ -30,22 +28,23 @@ const navItems = [
     ]
   },
   {
-    section: 'Settings',
-    items: [
-      { href: '/audit', label: 'Audit Log', icon: (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-      )},
-    ]
-  }
+  section: 'Settings',
+  items: [
+    { href: '/audit', label: 'Audit Log', icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+    )},
+    { href: '/settings', label: 'Settings', icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+    )},
+  ]
+}
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  useUser() // Register user in backend on every dashboard page load
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#f5f5f7' }}>
-
       {/* Sidebar */}
       <div style={{
         width: '230px',
@@ -112,7 +111,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Footer */}
         <div style={{ padding: '14px 16px', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div suppressHydrationWarning><UserButton /></div>
+            <div suppressHydrationWarning>
+              <UserButton />
+            </div>
             <div>
               <div style={{ color: '#1d1d1f', fontSize: '12px', fontWeight: 500 }}>Account</div>
               <div style={{ color: '#86868b', fontSize: '11px' }}>AIGuard</div>

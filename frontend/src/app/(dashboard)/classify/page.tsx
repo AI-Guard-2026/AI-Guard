@@ -152,7 +152,7 @@ function ClassifyContent() {
             </button>
             {tier === 'high_risk' && (
               <button
-                onClick={() => router.push(`/annex-iv?id=${systemId}&name=${encodeURIComponent(systemName)}`)}
+                onClick={() => router.push(`/annex-iv?systemId=${systemId}&systemName=${encodeURIComponent(systemName)}&sector=${encodeURIComponent('')}`)}
                 style={{ flex: 1, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.12)', background: '#fff', color: '#1d1d1f' }}
               >
                 Generate Annex IV →

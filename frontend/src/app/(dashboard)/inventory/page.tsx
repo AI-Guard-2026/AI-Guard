@@ -172,7 +172,7 @@ export default function InventoryPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
                   <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.3px' }}>Add AI System</h2>
-                  <button onClick={() => setOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#f5f5f7', cursor: 'pointer', fontSize: '14px', color: '#86868b' }}>✕</button>
+                  <button onClick={() => setOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#f5f5f7', cursor: 'pointer', fontSize: '14px', color: '#86868b' }}>\u2715</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {[
@@ -207,7 +207,7 @@ export default function InventoryPage() {
 
       {error && (
         <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', color: '#ff3b30' }}>
-          {error} <button onClick={() => setError('')} style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#ff3b30', fontWeight: 600 }}>✕</button>
+          {error} <button onClick={() => setError('')} style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#ff3b30', fontWeight: 600 }}>\u2715</button>
         </div>
       )}
 
@@ -281,7 +281,7 @@ export default function InventoryPage() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <TableCell style={{ padding: '14px 20px', fontWeight: 500, fontSize: '13px', color: '#1d1d1f' }}>{system.name}</TableCell>
-                    <TableCell style={{ padding: '14px 20px', fontSize: '12px', color: '#86868b' }}>{system.vendor || '—'}</TableCell>
+                    <TableCell style={{ padding: '14px 20px', fontSize: '12px', color: '#86868b' }}>{system.vendor || '\u2014'}</TableCell>
                     <TableCell style={{ padding: '14px 20px', fontSize: '12px', color: '#3a3a3c' }}>{system.purpose}</TableCell>
                     <TableCell style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, background: style.background, color: style.color }}>
@@ -290,13 +290,21 @@ export default function InventoryPage() {
                       </div>
                     </TableCell>
                     <TableCell style={{ padding: '14px 20px' }}>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <a
                           href={`/classify?id=${system.id}&name=${encodeURIComponent(system.name)}`}
                           style={{ background: '#f5f5f7', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', color: '#0071e3', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}
                         >
                           {tier === 'unclassified' ? 'Classify' : 'Reclassify'}
                         </a>
+                        {tier === 'high_risk' && (
+                          <a
+                            href={`/annex-iv?systemId=${system.id}&systemName=${encodeURIComponent(system.name)}&sector=${encodeURIComponent(system.sector || '')}`}
+                            style={{ background: '#f0f7ff', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', color: '#0071e3', cursor: 'pointer', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                          >
+                            Annex IV
+                          </a>
+                        )}
                         <button
                           onClick={() => handleDelete(system.id)}
                           style={{ background: '#fff0f0', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', color: '#ff3b30', cursor: 'pointer', fontWeight: 500 }}
@@ -314,4 +322,4 @@ export default function InventoryPage() {
       </motion.div>
     </div>
   )
-}
+} 

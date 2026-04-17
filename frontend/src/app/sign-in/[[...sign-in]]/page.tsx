@@ -28,7 +28,7 @@ export default function SignInPage() {
         <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.4px', marginBottom: '4px' }}>AIGuard</h1>
         <p style={{ fontSize: '14px', color: '#86868b' }}>EU AI Act Compliance Platform</p>
       </div>
-      <SignIn />
+      <SignIn forceRedirectUrl="/dashboard" />
     </div>
   )
 }

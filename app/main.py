@@ -13,18 +13,12 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# CORS — wildcard * cannot be used with allow_credentials=True
+# Must list each origin explicitly OR use allow_origins=["*"] with allow_credentials=False
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://aiguardd-1447exsw4-aiguard2026-1088s-projects.vercel.app",
-        "https://aiguardd-8ek0pkzmp-aiguard2026-1088s-projects.vercel.app",
-        "https://aiguard.vercel.app",
-        "https://*.vercel.app",
-        "https://*.ngrok-free.app",
-        "https://*.ngrok-free.dev",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,43 +1,45 @@
 # app/main.py
-# FastAPI application entry point
-# Configures middleware, CORS, and registers all routes
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
 
-# Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
     description="EU AI Act Compliance Platform API",
     version="0.1.0",
-    docs_url="/docs",       # Swagger UI at /docs
-    redoc_url="/redoc",     # ReDoc at /redoc
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
+# CORS — allow frontend to call backend
 origins = [
-    "http://localhost:3000",                    # Local Next.js
-    "http://localhost:3001",                    # Alternative port
-    "https://tablet-royal-timid.ngrok-free.dev",# Your ngrok URL — update this
-    "https://*.ngrok-free.app",                 # Allow all ngrok URLs
+    # Local development
+    "http://localhost:3000",
+    "http://localhost:3001",
+    # Vercel deployments
+    "https://aiguardd-8ek0pkzmp-aiguard2026-1088s-projects.vercel.app",
+    "https://aiguard.vercel.app",
+    # Allow all Vercel preview deployments
+    "https://*.vercel.app",
+    # ngrok for local testing
+    "https://*.ngrok-free.app",
     "https://*.ngrok-free.dev",
 ]
 
+# In development allow everything
 if settings.APP_ENV == "development":
-    origins = ["*"]  
+    origins = ["*"]
 
-# CORS — allow frontend to call API
-# In production: replace "*" with your actual frontend domain
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.APP_ENV == "development" else ["https://yourdomain.com"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register all API routes under /api/v1
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
@@ -48,4 +50,5 @@ def root():
         "version": "0.1.0",
         "docs": "/docs",
         "status": "running",
+        "environment": settings.APP_ENV,
     }

@@ -43,9 +43,9 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
-    """Root endpoint — confirms API is running."""
     return {
         "service": settings.APP_NAME,
         "version": "0.1.0",
         "docs": "/docs",
+        "status": "running",
     }

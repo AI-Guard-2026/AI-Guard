@@ -65,7 +65,7 @@ export async function listSystems(token: string, orgId: string, params?: {
   if (params?.size) query.set('size', String(params.size))
 
   const qs = query.toString()
-  return apiFetch(`/organisations/${orgId}/ai-systems${qs ? `?${qs}` : ''}`, token)
+  return apiFetch(`/organisations/${orgId}/ai-systems/${qs ? `?${qs}` : ''}`, token)
 }
 
 export async function createSystem(token: string, orgId: string, payload: {

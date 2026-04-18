@@ -75,14 +75,14 @@ export async function createSystem(token: string, orgId: string, payload: {
   sector?: string
   is_in_eu_market?: boolean
 }) {
-  return apiFetch(`/organisations/${orgId}/ai-systems`, token, {
+  return apiFetch(`/organisations/${orgId}/ai-systems/`, token, {
     method: 'POST',
     body: JSON.stringify({ is_in_eu_market: true, ...payload }),
   })
 }
 
 export async function deleteSystem(token: string, orgId: string, systemId: string) {
-  return apiFetch(`/organisations/${orgId}/ai-systems/${systemId}`, token, {
+  return apiFetch(`/organisations/${orgId}/ai-systems/${systemId}/`, token, {
     method: 'DELETE',
   })
 }
@@ -110,7 +110,7 @@ export async function importCSV(token: string, orgId: string, file: File) {
 
 // ─── Classifications ─────────────────────────────────────
 export async function classifySystem(token: string, orgId: string, systemId: string, answers: Record<string, string>) {
-  return apiFetch(`/organisations/${orgId}/ai-systems/${systemId}/classify`, token, {
+  return apiFetch(`/organisations/${orgId}/ai-systems/${systemId}/classify/`, token, {
     method: 'POST',
     body: JSON.stringify({ questionnaire_answers: answers }),
   })
@@ -118,7 +118,7 @@ export async function classifySystem(token: string, orgId: string, systemId: str
 
 // ─── Documents ───────────────────────────────────────────
 export async function generateDocument(token: string, orgId: string, systemId: string, answers: Record<string, string>) {
-  return apiFetch(`/organisations/${orgId}/ai-systems/${systemId}/documents/generate`, token, {
+  return apiFetch(`/organisations/${orgId}/ai-systems/${systemId}/documents/generate/`, token, {
     method: 'POST',
     body: JSON.stringify({ interview_answers: answers }),
   })

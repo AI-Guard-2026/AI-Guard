@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/nextjs'
 import { motion, AnimatePresence } from 'framer-motion'
 import jsPDF from 'jspdf'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tablet-royal-timid.ngrok-free.dev/api/v1'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ai-guard-production.up.railway.app/api/v1'
 
 type Question = { id: string; question: string; help?: string; required: boolean }
 type Section = { title: string; questions: Question[] }

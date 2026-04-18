@@ -2,7 +2,7 @@
 // Central API client — all backend calls go through here
 // Automatically attaches Clerk auth token to every request
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tablet-royal-timid.ngrok-free.dev/api/v1'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ai-guard-production.up.railway.app/api/v1'
 
 async function apiFetch(
   path: string,

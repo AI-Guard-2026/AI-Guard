@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '@clerk/nextjs'
 import { useUser } from '@/hooks/useUser'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tablet-royal-timid.ngrok-free.dev/api/v1'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ai-guard-production.up.railway.app/api/v1'
 
 type Stats = {
   organisation_name: string
